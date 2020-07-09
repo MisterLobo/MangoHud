@@ -280,11 +280,11 @@ void create_fonts(const overlay_params& params, ImFont*& small_font, ImFont*& te
    // ImGui takes ownership of the data, no need to free it
    if (!params.font_file.empty() && file_exists(params.font_file)) {
       io.Fonts->AddFontFromFileTTF(params.font_file.c_str(), font_size, nullptr, same_font && same_size ? glyph_ranges.Data : default_range);
-      small_font = io.Fonts->AddFontFromFileTTF(params.font_file.c_str(), font_size * 0.55f, nullptr, default_range);
+      //small_font = io.Fonts->AddFontFromFileTTF(params.font_file.c_str(), font_size * 0.55f, nullptr, default_range);
    } else {
       const char* ttf_compressed_base85 = GetDefaultCompressedFontDataTTFBase85();
       io.Fonts->AddFontFromMemoryCompressedBase85TTF(ttf_compressed_base85, font_size, nullptr, default_range);
-      small_font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(ttf_compressed_base85, font_size * 0.55f, nullptr, default_range);
+      //small_font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(ttf_compressed_base85, font_size * 0.55f, nullptr, default_range);
    }
 
    auto font_file_text = params.font_file_text;
@@ -297,6 +297,12 @@ void create_fonts(const overlay_params& params, ImFont*& small_font, ImFont*& te
       text_font = io.Fonts->Fonts[0];
 
    io.Fonts->Build();
+
+   ImFont *small_font_ = IM_NEW(ImFont)(*io.Fonts->Fonts[0]);
+   small_font_->Scale = 0.55f;
+   small_font = small_font_;
+   io.Fonts->Fonts.push_back(small_font_);
+
 }
 
 static VkLayerInstanceCreateInfo *get_instance_chain_info(const VkInstanceCreateInfo *pCreateInfo,
@@ -796,7 +802,7 @@ void check_keybinds(struct swapchain_stats& sw_stats, struct overlay_params& par
          reload_cfg_press = now;
       }
    }
-   
+
    if (params.permit_upload && elapsedUpload >= keyPressDelay){
 #ifdef HAVE_X11
       pressed = keys_are_pressed(params.upload_log);
@@ -807,7 +813,7 @@ void check_keybinds(struct swapchain_stats& sw_stats, struct overlay_params& par
          last_upload_press = now;
          logger->upload_last_log();
       }
-   }   
+   }
 }
 
 void calculate_benchmark_data(){
@@ -1396,6 +1402,21 @@ void render_imgui(swapchain_stats& data, struct overlay_params& params, ImVec2& 
       if((now - logger->last_log_end()) < 12s)
          render_benchmark(data, params, window_size, height, now);
    }
+
+#if 1
+   ImGui::SetNextWindowBgAlpha(params.background_alpha);
+   auto dsz = ImGui::GetIO().DisplaySize;
+   //auto atlas = &font_atlas_text;
+   auto atlas = ImGui::GetIO().Fonts->Fonts[0]->ContainerAtlas;
+   float scale = 1; //atlas->TexHeight/512.f;
+   auto img_pos = ImVec2(dsz.x - atlas->TexWidth/scale - 25.f, dsz.y - 512 - 25.f);
+   auto img_size = ImVec2(atlas->TexWidth/scale + 20.f, 512 + 20.f);
+   ImGui::SetNextWindowPos(img_pos, ImGuiCond_Always);
+   ImGui::SetNextWindowSize(img_size, ImGuiCond_Always);
+   ImGui::Begin("Font Atlas", nullptr, ImGuiWindowFlags_AlwaysAutoResize|ImGuiWindowFlags_NoDecoration);
+   ImGui::Image(atlas->TexID, ImVec2(atlas->TexWidth/scale, atlas->TexHeight/scale));
+   ImGui::End();
+#endif
 }
 
 static void compute_swapchain_display(struct swapchain_data *data)
@@ -2486,7 +2507,7 @@ static VkResult overlay_QueuePresentKHR(
    }
 
    using namespace std::chrono_literals;
-   
+
    if (fps_limit_stats.targetFrameTime > 0s){
       fps_limit_stats.frameStart = Clock::now();
       FpsLimiter(fps_limit_stats);
